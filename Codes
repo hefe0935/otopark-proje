@@ -1,0 +1,93 @@
+import sqlite3
+from tkinter import *
+
+# Otopark sınıfı
+class Otopark:
+    def __init__(self):
+        self.baglanti = sqlite3.connect("otopark.db")
+        self.cursor = self.baglanti.cursor()
+        self.cursor.execute("CREATE TABLE IF NOT EXISTS yerler (yer TEXT, dolu_mu INTEGER)")
+        self.baglanti.commit()
+
+        self.yerler = {"a1": False, "a2": False, "b1": False, "b2": False}
+
+    def yerleri_goster(self):
+        bos_yerler = [yer for yer, dolu_mu in self.yerler.items() if not dolu_mu]
+        return bos_yerler
+
+    def yer_sec(self, yer):
+        if yer in self.yerler and not self.yerler[yer]:
+            self.yerler[yer] = True
+            self.cursor.execute("INSERT INTO yerler VALUES (?, ?)", (yer, 1))
+            self.baglanti.commit()
+            return f"{yer} yerini aldınız."
+        else:
+            return "Bu yer müsait değil."
+
+    def yerleri_kontrol_et(self):
+        self.cursor.execute("SELECT yer FROM yerler WHERE dolu_mu = 1")
+        dolu_yerler = self.cursor.fetchall()
+        for dolu_yer in dolu_yerler:
+            self.yerler[dolu_yer[0]] = True
+
+        self.cursor.execute("SELECT yer FROM yerler WHERE dolu_mu = 0")
+        bos_yerler = self.cursor.fetchall()
+        for bos_yer in bos_yerler:
+            self.yerler[bos_yer[0]] = False
+
+# Ana uygulama
+class OtoparkUygulamasi:
+    def __init__(self):
+        self.otopark = Otopark()
+        self.otopark.yerleri_kontrol_et()
+        self.gui_olustur()
+
+    def gui_olustur(self):
+        self.pencere = Tk()
+        self.pencere.title("Otopark Uygulaması")
+        self.pencere.geometry("400x300")
+        self.pencere.configure(bg="lightblue")
+
+        self.etiket = Label(self.pencere, text="Boş Yerler:", font=("Comic Sans MS", 14), bg="lightblue")
+        self.etiket.pack()
+
+        self.bos_yerler_etiket = Label(self.pencere, text="", font=("Comic Sans MS", 12), bg="lightblue")
+        self.bos_yerler_etiket.pack(pady=10)
+
+        self.yer_sec_etiket = Label(self.pencere, text="Yer Seçin:", font=("Comic Sans MS", 12), bg="lightblue")
+        self.yer_sec_etiket.pack()
+
+        self.yer_sec_entry = Entry(self.pencere, font=("Comic Sans MS", 12))
+        self.yer_sec_entry.pack(pady=10)
+
+        self.sonuc_etiket = Label(self.pencere, text="", font=("Comic Sans MS", 12), bg="lightblue")
+        self.sonuc_etiket.pack(pady=10)
+
+        self.yerleri_goster_butonu = Button(self.pencere, text="Boş Yerleri Göster", font=("Comic Sans MS", 12), command=self.bos_yerleri_goster)
+        self.yerleri_goster_butonu.pack(pady=10)
+
+        self.yer_sec_butonu = Button(self.pencere, text="Yer Seç", font=("Comic Sans MS", 12), command=self.yer_sec)
+        self.yer_sec_butonu.pack(pady=10)
+
+        self.pencere.protocol("WM_DELETE_WINDOW", self.pencere_kapatildi)
+
+        self.pencere.mainloop()
+
+    def bos_yerleri_goster(self):
+        bos_yerler = self.otopark.yerleri_goster()
+        self.bos_yerler_etiket.config(text="Boş Yerler: " + ", ".join(bos_yerler))
+
+    def yer_sec(self):
+        secilen_yer = self.yer_sec_entry.get()
+        sonuc = self.otopark.yer_sec(secilen_yer)
+        self.sonuc_etiket.config(text=sonuc)
+
+    def pencere_kapatildi(self):
+        self.otopark.cursor.execute("DELETE FROM yerler")
+        for yer, dolu_mu in self.otopark.yerler.items():
+            self.otopark.cursor.execute("INSERT INTO yerler VALUES (?, ?)", (yer, int(dolu_mu)))
+        self.otopark.baglanti.commit()
+        self.pencere.destroy()
+
+# Uygulamayı başlat
+otopark_uygulamasi = OtoparkUygulamasi()
